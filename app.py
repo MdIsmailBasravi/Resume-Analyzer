@@ -1,149 +1,194 @@
 import streamlit as st
 import PyPDF2
+import re
+from sklearn.feature_extraction.text import TfidfVectorizer, ENGLISH_STOP_WORDS
+from sklearn.metrics.pairwise import cosine_similarity
 
 # ======================
-# PAGE SETUP
+# PAGE CONFIG
 # ======================
-st.set_page_config(page_title="Career Gap Analyzer")
+st.set_page_config(page_title="AI ATS Resume Analyzer", layout="centered")
 
-st.title("Career Gap Analyzer")
-st.write("Analyze your resume and identify improvement areas")
+# ======================
+# HEADER
+# ======================
+col1, col2 = st.columns([1, 8])
+
+with col1:
+    st.image("https://cdn-icons-png.flaticon.com/512/3135/3135715.png", width=55)
+
+with col2:
+    st.title("AI ATS Resume Analyzer")
+    st.caption("AI-powered hiring intelligence system")
 
 st.markdown("---")
 
 # ======================
-# FILE UPLOAD
+# CLEAN FUNCTION (SMART FILTER)
+# ======================
+def clean_text(text):
+    text = re.sub(r'[^a-zA-Z ]', ' ', text)
+    words = text.lower().split()
+
+    noise_words = {
+        "we","are","the","and","for","with","this","that","role",
+        "should","have","looking","join","team","candidate",
+        "including","will","job","work","experience","skills",
+        "required","preferred","plus","ability","strong"
+    }
+
+    return {
+        w for w in words
+        if w not in ENGLISH_STOP_WORDS
+        and w not in noise_words
+        and len(w) > 2
+    }
+
+# ======================
+# UPLOAD RESUME
 # ======================
 file = st.file_uploader("Upload Resume (PDF)", type=["pdf"])
 
 if file:
 
     reader = PyPDF2.PdfReader(file)
-    text = ""
+    resume_text = ""
 
     for page in reader.pages:
-        content = page.extract_text()
-        if content:
-            text += content
+        text = page.extract_text()
+        if text:
+            resume_text += text
 
-    text = text.lower()
+    resume_text = resume_text.lower()
+    st.success("Resume successfully processed")
 
     # ======================
-    # SKILL ANALYSIS
+    # JOB DESCRIPTION
     # ======================
-    st.subheader("Analysis")
+    job_desc = st.text_area("Paste Job Description")
 
-    skills = ["python", "java", "sql", "machine learning", "flask", "pandas"]
+    if job_desc:
 
-    found = []
-    missing = []
+        job_desc = job_desc.lower()
 
-    for skill in skills:
-        if skill in text:
-            found.append(skill)
+        # ======================
+        # NLP MATCH SCORE (CORE AI)
+        # ======================
+        vectorizer = TfidfVectorizer(stop_words="english")
+        vectors = vectorizer.fit_transform([resume_text, job_desc])
+
+        similarity = cosine_similarity(vectors[0:1], vectors[1:2])[0][0]
+        match_score = round(similarity * 100, 2)
+
+        # ======================
+        # SKILL ENGINE
+        # ======================
+        skills = [
+            "python","java","sql","machine learning",
+            "flask","django","pandas","api","numpy"
+        ]
+
+        found_skills = [s for s in skills if s in resume_text]
+        missing_skills = [s for s in skills if s not in resume_text]
+
+        skill_score = round((len(found_skills) / len(skills)) * 100, 2)
+
+        # ======================
+        # EXPERIENCE ENGINE
+        # ======================
+        exp_keywords = ["project","built","developed","implemented","designed","deployed"]
+        exp_score = sum(1 for w in exp_keywords if w in resume_text)
+        exp_score = min(exp_score * 20, 100)
+
+        # ======================
+        # FINAL ATS SCORE (WEIGHTED MODEL)
+        # ======================
+        ats_score = round(
+            (match_score * 0.5) +
+            (skill_score * 0.3) +
+            (exp_score * 0.2),
+            2
+        )
+
+        # ======================
+        # DECISION ENGINE
+        # ======================
+        if ats_score >= 75:
+            decision = "✔ Strong Candidate — Highly Recommended"
+        elif ats_score >= 50:
+            decision = "⚠ Moderate Candidate — Needs Improvement"
         else:
-            missing.append(skill)
+            decision = "✖ Weak Candidate — Not Suitable"
 
-    score = int((len(found) / len(skills)) * 100)
+        # ======================
+        # DASHBOARD
+        # ======================
+        st.markdown("## 📊 ATS Evaluation Dashboard")
 
-    # ======================
-    # SCORE
-    # ======================
-    st.subheader("Score")
-    st.write(f"{score} / 100")
+        col1, col2, col3 = st.columns(3)
 
-    st.markdown("---")
+        col1.metric("ATS Score", f"{ats_score}/100")
+        col2.metric("Match Score", f"{match_score}/100")
+        col3.metric("Skill Score", f"{skill_score}/100")
 
-    # ======================
-    # DECISION
-    # ======================
-    st.subheader("Evaluation")
-
-    if score >= 75:
-        st.write("High chance of shortlisting")
-    elif score >= 50:
-        st.write("Moderate chance, improvement needed")
-    else:
-        st.write("Low chance, significant improvement required")
-
-    st.markdown("---")
-
-    # ======================
-    # SKILLS FOUND
-    # ======================
-    st.subheader("Skills Identified")
-
-    if found:
-        for skill in found:
-            st.write(f"- {skill}")
-    else:
-        st.write("No relevant skills identified")
-
-    # ======================
-    # MISSING SKILLS
-    # ======================
-    st.subheader("Skills to Improve")
-
-    if missing:
-        for skill in missing:
-            st.write(f"- {skill}")
-    else:
-        st.write("All key skills covered")
-
-    st.markdown("---")
-
-    # ======================
-    # ACTION PLAN
-    # ======================
-    st.subheader("Action Plan")
-
-    if missing:
-        for skill in missing:
-            st.write(f"- Add or learn {skill}")
-    else:
-        st.write("Maintain current skill set and build projects")
-
-    st.write("Focus on real-world projects and deployment experience")
-
-    st.markdown("---")
-
-    # ======================
-    # JOB MATCHING
-    # ======================
-    st.subheader("Job Matching")
-
-    job = st.text_area("Paste Job Description")
-
-    if job:
-        job = job.lower()
-
-        resume_words = set(text.split())
-        job_words = set(job.split())
-
-        match = len(resume_words & job_words)
-        total = len(job_words)
-
-        percent = int((match / total) * 100) if total else 0
-
-        st.write(f"Match Score: {percent} / 100")
+        st.progress(ats_score / 100)
 
         st.markdown("---")
 
         # ======================
-        # INSIGHT
+        # DECISION
         # ======================
-        st.subheader("Interpretation")
+        st.markdown("### 🧠 Hiring Decision")
+        st.info(decision)
 
-        if percent >= 70:
-            st.write("Strong alignment with job requirements")
-        elif percent >= 40:
-            st.write("Partial alignment, improvement needed")
+        st.markdown("---")
+
+        # ======================
+        # SKILLS SECTION
+        # ======================
+        st.markdown("### 🛠 Skills Analysis")
+
+        st.markdown("**✔ Found Skills**")
+        if found_skills:
+            for s in found_skills:
+                st.write(f"- {s}")
         else:
-            st.write("Low alignment with this role")
+            st.write("No major skills found")
 
-        missing_words = job_words - resume_words
+        st.markdown("**✖ Missing Skills**")
+        if missing_skills:
+            for s in missing_skills:
+                st.write(f"- {s}")
+
+        st.markdown("---")
+
+        # ======================
+        # IMPROVEMENT PLAN
+        # ======================
+        st.markdown("### 📌 Improvement Plan")
+
+        if missing_skills:
+            for s in missing_skills:
+                st.write(f"→ Improve: {s}")
+
+        st.write("→ Add real-world deployed projects")
+        st.write("→ Include measurable achievements")
+        st.write("→ Optimize resume for ATS keywords")
+
+        st.markdown("---")
+
+        # ======================
+        # SMART KEYWORDS
+        # ======================
+        st.markdown("### 🔍 Missing Keywords (Cleaned)")
+
+        resume_words = clean_text(resume_text)
+        job_words = clean_text(job_desc)
+
+        missing_words = list(job_words - resume_words)
 
         if missing_words:
-            st.subheader("Missing Keywords")
-            for word in list(missing_words)[:10]:
-                st.write(f"- {word}")
+            for w in missing_words[:12]:
+                st.write(f"- {w}")
+        else:
+            st.success("No important missing keywords detected")
