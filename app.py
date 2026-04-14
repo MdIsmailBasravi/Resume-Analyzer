@@ -2,156 +2,148 @@ import streamlit as st
 import PyPDF2
 
 # ======================
-# 🎨 PAGE CONFIG
+# PAGE SETUP
 # ======================
-st.set_page_config(page_title="AI Career Gap Analyzer", page_icon="🤖", layout="centered")
+st.set_page_config(page_title="Career Gap Analyzer")
 
-st.title("🤖 AI Career Gap Analyzer")
-st.caption("Analyze your resume, identify skill gaps, and match with job roles")
+st.title("Career Gap Analyzer")
+st.write("Analyze your resume and identify improvement areas")
 
 st.markdown("---")
 
 # ======================
-# 📄 FILE UPLOAD
+# FILE UPLOAD
 # ======================
-uploaded_file = st.file_uploader("Upload your Resume (PDF)", type=["pdf"])
+file = st.file_uploader("Upload Resume (PDF)", type=["pdf"])
 
-if uploaded_file is not None:
+if file:
 
-    # ======================
-    # 📄 READ PDF
-    # ======================
-    pdf_reader = PyPDF2.PdfReader(uploaded_file)
-
+    reader = PyPDF2.PdfReader(file)
     text = ""
-    for page in pdf_reader.pages:
-        page_text = page.extract_text()
-        if page_text:
-            text += page_text
+
+    for page in reader.pages:
+        content = page.extract_text()
+        if content:
+            text += content
 
     text = text.lower()
 
     # ======================
-    # 📄 VIEW TEXT
+    # SKILL ANALYSIS
     # ======================
-    with st.expander("📄 View Extracted Resume Text"):
-        st.write(text)
-
-    st.markdown("---")
-
-    # ======================
-    # 📊 SKILL ANALYSIS
-    # ======================
-    st.subheader("📊 Resume Analysis")
+    st.subheader("Analysis")
 
     skills = ["python", "java", "sql", "machine learning", "flask", "pandas"]
 
-    found_skills = []
-    missing_skills = []
-    score = 0
+    found = []
+    missing = []
 
     for skill in skills:
         if skill in text:
-            found_skills.append(skill)
-            score += 100 // len(skills)
+            found.append(skill)
         else:
-            missing_skills.append(skill)
+            missing.append(skill)
+
+    score = int((len(found) / len(skills)) * 100)
 
     # ======================
-    # 📊 SCORE DISPLAY
+    # SCORE
     # ======================
-    st.subheader("📊 Resume Score")
-    st.progress(score / 100)
-    st.write(f"### Score: {score}/100")
-
-    if score >= 70:
-        st.success("✅ Strong Resume")
-    elif score >= 40:
-        st.warning("⚠️ Average Resume")
-    else:
-        st.error("❌ Weak Resume")
+    st.subheader("Score")
+    st.write(f"{score} / 100")
 
     st.markdown("---")
 
     # ======================
-    # ✅ SKILLS FOUND
+    # DECISION
     # ======================
-    st.subheader("✅ Skills Found")
+    st.subheader("Evaluation")
 
-    if found_skills:
-        st.write(", ".join(found_skills))
+    if score >= 75:
+        st.write("High chance of shortlisting")
+    elif score >= 50:
+        st.write("Moderate chance, improvement needed")
     else:
-        st.write("No relevant skills found")
-
-    # ======================
-    # ❌ MISSING SKILLS
-    # ======================
-    st.subheader("❌ Missing Skills")
-
-    if missing_skills:
-        st.write(", ".join(missing_skills))
-    else:
-        st.success("No missing skills 🎉")
+        st.write("Low chance, significant improvement required")
 
     st.markdown("---")
 
     # ======================
-    # 💡 SUGGESTIONS
+    # SKILLS FOUND
     # ======================
-    st.subheader("💡 Improvement Suggestions")
+    st.subheader("Skills Identified")
 
-    if missing_skills:
-        st.warning("You should improve the following areas:")
-        for skill in missing_skills:
-            st.write(f"- Learn or add **{skill}**")
+    if found:
+        for skill in found:
+            st.write(f"- {skill}")
     else:
-        st.success("🎉 Your resume covers all key skills!")
+        st.write("No relevant skills identified")
 
-    st.info("Tip: Add real projects and deployment experience to stand out")
+    # ======================
+    # MISSING SKILLS
+    # ======================
+    st.subheader("Skills to Improve")
+
+    if missing:
+        for skill in missing:
+            st.write(f"- {skill}")
+    else:
+        st.write("All key skills covered")
 
     st.markdown("---")
 
     # ======================
-    # 🎯 JOB MATCHING
+    # ACTION PLAN
     # ======================
-    st.subheader("🎯 Job Matching")
+    st.subheader("Action Plan")
 
-    job_desc = st.text_area("Paste Job Description here")
+    if missing:
+        for skill in missing:
+            st.write(f"- Add or learn {skill}")
+    else:
+        st.write("Maintain current skill set and build projects")
 
-    if job_desc:
-        job_desc = job_desc.lower()
+    st.write("Focus on real-world projects and deployment experience")
+
+    st.markdown("---")
+
+    # ======================
+    # JOB MATCHING
+    # ======================
+    st.subheader("Job Matching")
+
+    job = st.text_area("Paste Job Description")
+
+    if job:
+        job = job.lower()
 
         resume_words = set(text.split())
-        job_words = set(job_desc.split())
+        job_words = set(job.split())
 
         match = len(resume_words & job_words)
         total = len(job_words)
 
-        match_percent = int((match / total) * 100) if total > 0 else 0
+        percent = int((match / total) * 100) if total else 0
 
-        st.subheader("📊 Job Match Score")
-        st.progress(match_percent / 100)
-        st.success(f"Match Score: {match_percent}%")
+        st.write(f"Match Score: {percent} / 100")
 
-        missing_keywords = job_words - resume_words
+        st.markdown("---")
 
-        if missing_keywords:
-            st.error("❌ Missing Keywords:")
-            for word in list(missing_keywords)[:10]:
-                st.write(f"- {word}")
+        # ======================
+        # INSIGHT
+        # ======================
+        st.subheader("Interpretation")
+
+        if percent >= 70:
+            st.write("Strong alignment with job requirements")
+        elif percent >= 40:
+            st.write("Partial alignment, improvement needed")
         else:
-            st.success("🎯 Excellent match with job description!")
+            st.write("Low alignment with this role")
 
-    st.markdown("---")
+        missing_words = job_words - resume_words
 
-    # ======================
-    # 📌 FINAL FEEDBACK
-    # ======================
-    st.subheader("📌 Final Resume Feedback")
-
-    if score >= 70:
-        st.success("Your resume is strong but can still be improved for top companies.")
-    elif score >= 40:
-        st.warning("Your resume is average. Focus on adding key skills and projects.")
-    else:
-        st.error("Your resume needs major improvements to compete in the job market.")
+        if missing_words:
+            st.subheader("Missing Keywords")
+            for word in list(missing_words)[:10]:
+                st.write(f"- {word}")
